@@ -559,12 +559,34 @@
       }
       const games = [
         ["catcher", "Coin Catcher", "Ücretsiz"],
-        ["cube", "Küp Koşusu", "250 Coin"],
+        ["cube", "Küp Koşusu", "250 Coin", "coin", 250],
         ["island", "Macera Adası", "Ücretsiz"],
-        ["showcase", "3D Vitrin", "Premium"],
-        ["space", "Uzay Savaşı", "500 Coin"],
+        ["showcase", "3D Vitrin", "3 Mertix", "mertix", 3],
+        ["space", "Uzay Savaşı", "500 Coin", "coin", 500],
         ["snake", "Yılan", "Ücretsiz"],
-      ];
+      ],
+        gameById = Object.fromEntries(games.map((game) => [game[0], game]));
+
+      function ownsGame(u, id) {
+        return u.owned?.includes("all") || u.owned?.includes(id);
+      }
+      function shop() {
+        openPage("shop");
+      }
+      function buyGame(id) {
+        let game = gameById[id],
+          u = user();
+        if (!game || !game[3]) return n("Bu oyun satın alınamaz.");
+        if (ownsGame(u, id)) return n("Bu oyuna zaten sahipsin.");
+        if (u[game[3]] < game[4])
+          return n(`Yeterli ${game[3] === "coin" ? "Coin" : "Mertix"} yok.`);
+        u[game[3]] -= game[4];
+        u.owned ??= [];
+        u.owned.push(id);
+        save();
+        n(`${game[1]} artık senin. İyi eğlenceler!`);
+        openPage("shop");
+      }
       function drawThumb(c, i) {
         let x = c.getContext("2d"),
           w = (c.width = 300),
@@ -598,14 +620,16 @@
       }
       function home() {
         let u = user();
-        root.innerHTML = `<main class="app"><header class="top"><div class="brand"><div class="logo">${I}</div>MertixtanPlay</div><div class="wallet"><span class="coin">● ${u.coin.toLocaleString()}</span><span class="mertix">◆ ${u.mertix.toLocaleString()}</span></div></header><section class="hero card"><h2>Oyun evrenin hazır.</h2><p>Keşfet, oyna, karakterini oluştur ve kendi deneyimini tasarla.</p><button class="btn" onclick="openPage('rewards')">Günlük ödülü al</button></section><section class="section"><div class="sectionhead"><b>Öne çıkan oyunlar</b><button onclick="openPage('games')">Tümü</button></div><div class="games">${games.map((g, i) => `<button class="game" onclick="play('${g[0]}')"><canvas id="t${i}"></canvas><div class="gameinfo"><b>${g[1]}</b><small>Mertixtan Studios</small><span class="tag">${u.owned.includes("all") || u.owned.includes(g[0]) ? "SAHİP" : "🔒 " + g[2]}</span></div></button>`).join("")}</div></section></main><nav class="bottom"><button class="nav on" onclick="home()">${H}<span>Ana Sayfa</span></button><button class="nav" onclick="openPage('games')">${I}<span>Oyunlar</span></button><button class="nav" onclick="openPage('build')">${S}<span>Yapıcı</span></button><button class="nav" onclick="openPage('avatar')">${S}<span>Karakter</span></button></nav>`;
+        root.innerHTML = `<main class="app"><header class="top"><div class="brand"><div class="logo">${I}</div>MertixtanPlay</div><div class="wallet"><span class="coin">● ${u.coin.toLocaleString()}</span><span class="mertix">◆ ${u.mertix.toLocaleString()}</span></div></header><section class="hero card"><h2>Oyun evrenin hazır.</h2><p>Keşfet, oyna, karakterini oluştur ve kendi deneyimini tasarla.</p><div class="row"><button class="btn" onclick="openPage('rewards')">Günlük ödülü al</button><button class="btn alt" onclick="shop()">Mağazayı aç</button></div></section><section class="section"><div class="sectionhead"><b>Öne çıkan oyunlar</b><button onclick="openPage('games')">Tümü</button></div><div class="games">${games.map((g, i) => `<button class="game" onclick="play('${g[0]}')"><canvas id="t${i}"></canvas><div class="gameinfo"><b>${g[1]}</b><small>Mertixtan Studios</small><span class="tag">${ownsGame(u, g[0]) ? "SAHİP" : "🔒 " + g[2]}</span></div></button>`).join("")}</div></section></main><nav class="bottom"><button class="nav on" onclick="home()">${H}<span>Ana Sayfa</span></button><button class="nav" onclick="openPage('games')">${I}<span>Oyunlar</span></button><button class="nav" onclick="shop()">${S}<span>Mağaza</span></button><button class="nav" onclick="openPage('build')">${S}<span>Yapıcı</span></button><button class="nav" onclick="openPage('avatar')">${S}<span>Karakter</span></button></nav>`;
         games.forEach((_, i) => drawThumb(document.getElementById("t" + i), i));
       }
       function openPage(p) {
         let u = user(),
           body = "";
         if (p === "games")
-          body = `<h2>Oyun Merkezi</h2><div class="list">${games.map((g, i) => `<button class="card item" onclick="play('${g[0]}')"><span><b>${g[1]}</b><small>Yapımcı: Mertixtan Studios</small></span><span class="tag">${u.owned.includes("all") || u.owned.includes(g[0]) ? "SAHİP" : g[2]}</span></button>`).join("")}</div>`;
+          body = `<h2>Oyun Merkezi</h2><div class="list">${games.map((g) => `<button class="card item" onclick="play('${g[0]}')"><span><b>${g[1]}</b><small>Yapımcı: Mertixtan Studios</small></span><span class="tag">${ownsGame(u, g[0]) ? "SAHİP" : g[2]}</span></button>`).join("")}</div><button class="btn" onclick="shop()">Kilitli oyunları mağazada aç</button>`;
+        if (p === "shop")
+          body = `<h2>Oyun Mağazası</h2><p class="sub">Coin ve Mertix bakiyenle oyun koleksiyonunu genişlet.</p><div class="list section">${games.filter((g) => g[3]).map((g) => `<div class="card item"><span><b>${g[1]}</b><small>${g[2]}</small></span>${ownsGame(u, g[0]) ? `<span class="tag">SAHİP</span>` : `<button class="btn" onclick="buyGame('${g[0]}')">Satın Al</button>`}</div>`).join("")}</div>`;
         if (p === "avatar")
           body = `<h2>Karakter Editörü</h2><div class="avatar"><canvas id="av"></canvas></div><div class="tabs">${["Ten Rengi", "Saç Modeli", "Saç Rengi", "Gözler", "Üst Stili", "Şapka", "Aksesuar"].map((x, i) => `<button class="${!i ? "active" : ""}">${x}</button>`).join("")}</div><div class="options">${["Açık", "Buğday", "Bronz", "Koyu", "Zombi", "Altın"].map((x, i) => `<button class="opt ${!i ? "sel" : ""}" onclick="n('${x} seçildi.')">${x}<br><small>${i ? "200 Coin" : "Sahip"}</small></button>`).join("")}</div>`;
         if (p === "build")
@@ -645,8 +669,7 @@
         closeM();
         let names = Object.fromEntries(games.map((x) => [x[0], x[1]])),
           locked =
-            !user().owned.includes("all") &&
-            !user().owned.includes(id) &&
+            !ownsGame(user(), id) &&
             !["catcher", "snake", "island"].includes(id);
         if (locked) return n("Bu oyun henüz kilitli. Mağazadan açabilirsin.");
         sheet.innerHTML = `<div class="sheettop"><h2>${names[id]}</h2><button class="close" onclick="closeM()">×</button></div><canvas id="gc" class="gamecanvas"></canvas><p class="sub" id="status">Ekrana dokun veya ok tuşlarıyla oyna.</p><button class="btn" onclick="startGame('${id}')">Oyunu Başlat</button>`;
